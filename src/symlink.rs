@@ -4,7 +4,6 @@ use std::os::unix::fs::symlink as unix_symlink;
 use std::path::{Path, PathBuf};
 use tracing::{debug, warn};
 
-/// Expands a tilde `~` to the user's home directory.
 fn expand_tilde(path: &Path) -> PathBuf {
     if !path.starts_with("~") {
         return path.to_path_buf();
@@ -19,7 +18,6 @@ fn expand_tilde(path: &Path) -> PathBuf {
     new_path
 }
 
-/// Evaluates a single target-to-source link request.
 pub fn process_link(
     target: &Path,
     source: &Path,
@@ -70,7 +68,6 @@ pub fn process_link(
         expanded_source.display()
     );
     if !dry_run {
-        // Need to use absolute paths for symlinks to avoid broken relative links
         let abs_source = fs::canonicalize(&expanded_source)
             .map_err(|_| RsmError::PathResolution(expanded_source.clone()))?;
         unix_symlink(abs_source, &expanded_target)?;

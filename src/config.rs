@@ -62,7 +62,6 @@ impl Config {
             return Err(RsmError::TargetExists(path.to_path_buf()));
         }
 
-        // Example template geared toward Linux environment setups
         let template = r#"
 # RSM Configuration
 

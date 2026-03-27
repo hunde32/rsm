@@ -28,18 +28,14 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Initialize a new rsm.toml configuration file
     Init,
-    /// Restore symlinks matching the current OS and optional tags
-    Restore {
-        /// Optional tag to filter links (e.g., 'work', 'wm')
+    Sync {
         #[arg(long)]
         tag: Option<String>,
 
         #[arg(long)]
         dry_run: bool,
     },
-    /// Check the status of configured symlinks without making changes
     Check,
 }
 
@@ -89,19 +85,16 @@ fn main() -> Result<(), error::RsmError> {
                 current_env.hostname.cyan()
             );
 
-            // Filter links based on OS and Tags
             let links_to_process: Vec<_> = config
                 .links
                 .into_iter()
                 .filter(|link| {
-                    // Check OS match
                     if let Some(os) = &link.os {
                         if os != &current_env.os {
                             return false;
                         }
                     }
 
-                    // Check Tag match if tag was provided via CLI
                     if let Some(target_tag) = tag {
                         match &link.tags {
                             Some(tags) => {
@@ -109,7 +102,7 @@ fn main() -> Result<(), error::RsmError> {
                                     return false;
                                 }
                             }
-                            None => return false, // If user asked for a tag, and link has none, skip
+                            None => return false,
                         }
                     }
                     true
@@ -132,7 +125,6 @@ fn main() -> Result<(), error::RsmError> {
                 match symlink::process_link(&link.target, &link.source, cli.force, *dry_run) {
                     Ok(_) => {}
                     Err(crate::error::RsmError::SourceMissing(p)) => {
-                        // Warn but don't stop the whole process
                         pb.suspend(|| warn!("Skipping: Source missing at {}", p.display()));
                     }
                     Err(e) => {
@@ -161,7 +153,6 @@ fn main() -> Result<(), error::RsmError> {
                 config_path.display()
             );
             for link in config.links.iter() {
-                // Simple path expansion for checking
                 let target_str = link.target.to_string_lossy().replace(
                     "~",
                     &directories::BaseDirs::new()
