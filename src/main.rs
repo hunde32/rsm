@@ -68,7 +68,7 @@ fn main() -> Result<(), error::RsmError> {
             );
         }
 
-        Commands::Restore { tag, dry_run } => {
+        Commands::Sync { tag, dry_run } => {
             let config_path = Config::resolve_path(cli.config.as_ref())?;
             let config = Config::load(&config_path)?;
 
@@ -140,7 +140,7 @@ fn main() -> Result<(), error::RsmError> {
                 }
                 pb.inc(1);
             }
-            pb.finish_with_message("Restore complete.");
+            pb.finish_with_message("Sync complete.");
         }
 
         Commands::Check => {
