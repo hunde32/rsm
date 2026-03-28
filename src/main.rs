@@ -10,11 +10,17 @@ use config::Config;
 use std::path::PathBuf;
 use tracing::{error, info, warn};
 
+/// RSM (Rusty Symlink Manager)
+/// A high-performance, modular system utility for managing symbolic links.
 #[derive(Parser)]
 #[command(name = "RSM")]
-#[command(about = "Rusty Symlink Manager", long_about = None)]
+#[command(
+    version,
+    about = "Rusty Symlink Manager",
+    long_about = "A high-performance, modular system utility written in Rust for managing symbolic links via a centralized configuration."
+)]
 struct Cli {
-    /// Path to a specific rsm.toml file
+    /// Path to a specific config file (Defaults to XDG paths or ./rsm.toml)
     #[arg(short, long, global = true)]
     config: Option<PathBuf>,
 
@@ -22,20 +28,28 @@ struct Cli {
     #[arg(short, long, global = true)]
     force: bool,
 
+    // Make the subcommand OPTIONAL so 'clap' doesn't auto-fail when running just `rsm`
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Initializes a new default rsm.toml template
     Init,
+
+    /// Synchronizes symlinks based on your configuration
     Sync {
+        /// Filter and apply only the links matching this tag (e.g., "ui", "work")
         #[arg(long)]
         tag: Option<String>,
 
+        /// Preview the sync process without making any actual filesystem changes
         #[arg(long)]
         dry_run: bool,
     },
+
+    /// Validates your config against the current file system
     Check,
 }
 
@@ -51,14 +65,16 @@ fn init_tracing() {
 }
 
 fn main() -> Result<(), error::RsmError> {
+    let cli = Cli::parse();
+
     init_tracing();
     ui::print_banner();
 
-    let cli = Cli::parse();
     let current_env = env::Environment::current();
 
+    // Match on Some(command) or None
     match &cli.command {
-        Commands::Init => {
+        Some(Commands::Init) => {
             let target_path = cli.config.unwrap_or_else(|| PathBuf::from("rsm.toml"));
             config::Config::init_template(&target_path)?;
             info!(
@@ -68,7 +84,7 @@ fn main() -> Result<(), error::RsmError> {
             );
         }
 
-        Commands::Sync { tag, dry_run } => {
+        Some(Commands::Sync { tag, dry_run }) => {
             let config_path = Config::resolve_path(cli.config.as_ref())?;
             let config = Config::load(&config_path)?;
 
@@ -143,7 +159,7 @@ fn main() -> Result<(), error::RsmError> {
             pb.finish_with_message("Sync complete.");
         }
 
-        Commands::Check => {
+        Some(Commands::Check) => {
             let config_path = Config::resolve_path(cli.config.as_ref())?;
             let config = Config::load(&config_path)?;
 
@@ -179,6 +195,14 @@ fn main() -> Result<(), error::RsmError> {
                     println!("{} {} is missing", "⚠".yellow(), link.target.display());
                 }
             }
+        }
+
+        // Handle the case where the user just types `rsm`
+        None => {
+            println!(
+                "Welcome to RSM! Run {} to see available commands.",
+                "rsm --help".yellow().bold()
+            );
         }
     }
 
