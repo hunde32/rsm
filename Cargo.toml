@@ -1,6 +1,6 @@
 [package]
 name = "rsm"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 authors = ["Hundaol Dejen <hundaoldejen1@gmail.com>"]
 description = "A safe, fast, and modular symlink manager."
@@ -16,3 +16,6 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 directories = "5.0"
 hostname = "0.4"
+rayon = "1.8"
+walkdir = "2.4"
+glob = "0.3"
