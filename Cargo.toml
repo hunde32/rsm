@@ -1,6 +1,6 @@
 [package]
 name = "rsm"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["Hundaol Dejen <hundaoldejen1@gmail.com>"]
 description = "A safe, fast, and modular symlink manager."
