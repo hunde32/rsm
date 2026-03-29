@@ -7,6 +7,7 @@ use tracing::info;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
+    pub global_ignores: Option<Vec<String>>,
     pub links: Vec<LinkEntry>,
 }
 
@@ -14,13 +15,15 @@ pub struct Config {
 pub struct LinkEntry {
     pub target: PathBuf,
     pub source: PathBuf,
-    pub tags: Option<Vec<String>>,
+    #[serde(default)]
+    pub recursive: bool,
     pub os: Option<String>,
+    pub host: Option<String>,
+    pub tags: Option<Vec<String>>,
+    pub ignore: Option<Vec<String>>,
 }
 
 impl Config {
-    /// Resolves the configuration path using XDG standards.
-    /// Order: 1. CLI flag -> 2. ./rsm.toml -> 3. ~/.config/rsm/rsm.toml
     pub fn resolve_path(cli_path: Option<&PathBuf>) -> Result<PathBuf, RsmError> {
         if let Some(path) = cli_path {
             if path.exists() {
@@ -64,17 +67,21 @@ impl Config {
 
         let template = r#"
 # RSM Configuration
+global_ignores = [".git", ".DS_Store", "node_modules"]
 
 [[links]]
-target = "~/.config/hypr/hyprland.conf"
-source = "~/dotfiles/hyprland/hyprland.conf"
+target = "~/.config/hypr/"
+source = "~/dotfiles/hyprland/"
+recursive = true
 tags = ["wm", "ui"]
 os = "linux"
+ignore = ["*.bak", "secrets.conf"]
 
 [[links]]
 target = "~/.bashrc"
 source = "~/dotfiles/bash/bashrc"
 tags = ["shell"]
+host = "my-work-laptop"
 "#;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;

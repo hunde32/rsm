@@ -12,7 +12,7 @@ pub enum RsmError {
     #[error("Target already exists at {0}. Use --force to overwrite.")]
     TargetExists(PathBuf),
 
-    #[error("Source file does not exist: {0}")]
+    #[error("Source does not exist: {0}")]
     SourceMissing(PathBuf),
 
     #[error("Failed to parse TOML: {0}")]
@@ -20,4 +20,10 @@ pub enum RsmError {
 
     #[error("Failed to resolve absolute path for: {0}")]
     PathResolution(PathBuf),
+
+    #[error("Directory traversal error: {0}")]
+    WalkDir(#[from] walkdir::Error),
+
+    #[error("Invalid glob pattern: {0}")]
+    PatternError(#[from] glob::PatternError),
 }
