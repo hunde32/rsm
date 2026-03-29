@@ -1,5 +1,5 @@
 [package]
-name = "rsm"
+name = "rsm-cli"
 version = "0.2.0"
 edition = "2024"
 authors = ["Hundaol Dejen <hundaoldejen1@gmail.com>"]
