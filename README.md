@@ -2,7 +2,6 @@
 
 [![Build Status](https://img.shields.io/github/actions/workflow/status/hunde32/rsm/ci.yml?branch=main)](https://github.com/hunde32/rsm/actions)
 [![Crates.io](https://img.shields.io/crates/v/rsm-cli)](https://crates.io/crates/rsm-cli)
-[![Docs.rs](https://docs.rs/rsm-cli/badge.svg)](https://docs.rs/rsm-cli/latest/rsm-cli/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-2024-blue.svg)](https://www.rust-lang.org)
 
