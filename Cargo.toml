@@ -20,5 +20,5 @@ rayon = "1.8"
 walkdir = "2.4"
 glob = "0.3"
 [[bin]]
-name = "rsm-cli"
+name = "rsm"
 path = "src/main.rs"
