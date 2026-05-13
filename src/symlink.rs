@@ -1,3 +1,4 @@
+// symlink.rs
 use crate::error::RsmError;
 use glob::Pattern;
 use std::fs;
@@ -8,7 +9,7 @@ use walkdir::WalkDir;
 
 #[derive(Debug, Clone)]
 pub struct SyncTask {
-    pub source: PathBuf,
+    pub source: PathBuf, // This will now store the pre-computed absolute path
     pub target: PathBuf,
 }
 
@@ -67,9 +68,13 @@ pub fn resolve_tasks(
             if let Ok(entry) = entry {
                 let path = entry.path();
                 if path.is_file() {
+                    // Pre-compute the absolute path here, out of the concurrent hot loop
+                    let abs_source = fs::canonicalize(path)
+                        .map_err(|_| RsmError::PathResolution(path.to_path_buf()))?;
                     let rel_path = path.strip_prefix(&exp_source).unwrap();
+                    
                     tasks.push(SyncTask {
-                        source: path.to_path_buf(),
+                        source: abs_source,
                         target: exp_target.join(rel_path),
                     });
                 }
@@ -90,8 +95,12 @@ pub fn resolve_tasks(
         });
 
         if !is_ignored {
+            // Pre-compute for the single file case
+            let abs_source = fs::canonicalize(&exp_source)
+                .map_err(|_| RsmError::PathResolution(exp_source.clone()))?;
+                
             tasks.push(SyncTask {
-                source: exp_source,
+                source: abs_source,
                 target: exp_target,
             });
         }
@@ -129,10 +138,11 @@ pub fn prune_dead_links(
 }
 
 pub fn create_link(task: &SyncTask, force: bool, dry_run: bool) -> Result<(), RsmError> {
-    if task.target.exists() || task.target.is_symlink() {
+    // Single syscall to check if the target exists and what it is
+    if let Ok(meta) = fs::symlink_metadata(&task.target) {
         if force {
             if !dry_run {
-                if task.target.is_dir() && !task.target.is_symlink() {
+                if meta.is_dir() {
                     fs::remove_dir_all(&task.target)?;
                 } else {
                     fs::remove_file(&task.target)?;
@@ -143,16 +153,10 @@ pub fn create_link(task: &SyncTask, force: bool, dry_run: bool) -> Result<(), Rs
         }
     }
 
-    if let Some(parent) = task.target.parent() {
-        if !parent.exists() && !dry_run {
-            fs::create_dir_all(parent)?;
-        }
-    }
-
+    // Directory creation has been extracted to main.rs.
+    // Canonicalization is already completed. We just write the link.
     if !dry_run {
-        let abs_source = fs::canonicalize(&task.source)
-            .map_err(|_| RsmError::PathResolution(task.source.clone()))?;
-        unix_symlink(abs_source, &task.target)?;
+        unix_symlink(&task.source, &task.target)?;
     }
 
     Ok(())

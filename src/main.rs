@@ -1,3 +1,4 @@
+// main.rs
 mod config;
 mod env;
 mod error;
@@ -8,6 +9,7 @@ use clap::{Parser, Subcommand};
 use colored::*;
 use config::Config;
 use rayon::prelude::*;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use tracing::{error, info, warn};
 
@@ -170,26 +172,71 @@ fn main() -> Result<(), error::RsmError> {
                 return Ok(());
             }
 
+            // Deduplicate Parent Directory Creation
+            let mut parent_dirs = HashSet::new();
+            for task in &all_tasks {
+                if let Some(parent) = task.target.parent() {
+                    parent_dirs.insert(parent.to_path_buf());
+                }
+            }
+
+            if !is_dry_run {
+                for parent in &parent_dirs {
+                    if !parent.exists() {
+                        if let Err(e) = std::fs::create_dir_all(parent) {
+                            error!("{} Failed to create parent dir {}: {}", "✖".red(), parent.display(), e);
+                            return Err(e.into());
+                        }
+                    }
+                }
+            }
+
             let pb = ui::create_progress_bar(all_tasks.len() as u64);
 
-            all_tasks.par_iter().for_each(|task| {
-                pb.set_message(format!(
-                    "Syncing {:?}",
-                    task.target.file_name().unwrap_or_default()
-                ));
+            // ---------------------------------------------------------
+            // UPDATED: Adaptive Threading Strategy
+            // ---------------------------------------------------------
+            let tasks_per_dir = all_tasks.len() / std::cmp::max(parent_dirs.len(), 1);
+            
+            // 1. Bypass Rayon if tasks are crowding the same directory (Kernel Lock Contention)
+            let high_contention = tasks_per_dir > 5000;
+            
+            // 2. Bypass Rayon if the total workload is too small (Thread Spin-up Overhead)
+            let small_workload = all_tasks.len() < 2000; 
 
-                if let Err(e) = symlink::create_link(task, cli.force, is_dry_run) {
-                    pb.suspend(|| {
-                        error!(
-                            "{} Failed to link {}: {}",
-                            "✖".red(),
-                            task.target.display(),
-                            e
-                        );
-                    });
+            let use_sequential = high_contention || small_workload;
+            let chunk_size = 2000;
+
+            if use_sequential {
+                if small_workload {
+                    info!("Small workload detected. Syncing sequentially to avoid thread overhead.");
+                } else {
+                    info!("High task-to-directory ratio detected. Syncing sequentially to bypass kernel lock contention.");
                 }
-                pb.inc(1);
-            });
+                
+                for chunk in all_tasks.chunks(chunk_size) {
+                    for task in chunk {
+                        if let Err(e) = symlink::create_link(task, cli.force, is_dry_run) {
+                            pb.suspend(|| {
+                                error!("{} Failed to link {}: {}", "✖".red(), task.target.display(), e);
+                            });
+                        }
+                    }
+                    pb.inc(chunk.len() as u64);
+                }
+            } else {
+                // Large workloads with good directory distribution get the Rayon treatment
+                all_tasks.par_chunks(chunk_size).for_each(|chunk| {
+                    for task in chunk {
+                        if let Err(e) = symlink::create_link(task, cli.force, is_dry_run) {
+                            pb.suspend(|| {
+                                error!("{} Failed to link {}: {}", "✖".red(), task.target.display(), e);
+                            });
+                        }
+                    }
+                    pb.inc(chunk.len() as u64);
+                });
+            }
 
             pb.finish_with_message(format!("{} Sync complete.", "✔".green()));
         }
