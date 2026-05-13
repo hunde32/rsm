@@ -84,7 +84,7 @@ yay -S rsm
 
 ### Build from Source
 ```bash
-git clone [https://github.com/yourusername/rsm.git](https://github.com/yourusername/rsm.git)
+git clone [https://github.com/hunde32/rsm.git](https://github.com/hunde32/rsm.git)
 cd rsm
 cargo build --release
 ```
